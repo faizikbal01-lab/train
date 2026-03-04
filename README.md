@@ -84,23 +84,67 @@ The file contains **one structured worksheet** (`Sheet1`) with **91 columns** re
 - **Churned customers use 19% more day minutes on average** (208.99 vs. 175.56 min), suggesting heavy daytime users may feel underserved by their current plan pricing.
 
 ---
+## Recommendations for GitHub Upload
 
-## How to Use This Dataset
+Before publishing this project to GitHub, the following improvements are recommended to maximise usability, reproducibility, and professional quality.
 
-This file is designed as a **dashboard data source**. To connect it to your BI tool:
+### 1. Data Quality & Cleaning
 
-1. **Power BI / Tableau:** Import `train_for_dashboard.xlsx` → `Sheet1` as a flat data source. Use the column group headers to identify individual summary tables and build visuals from each section.
-2. **Excel Dashboard:** Each side-by-side table can be referenced directly in chart series or PivotTable data ranges using the column headers as identifiers.
-3. **Python/Pandas:** Load the sheet and slice relevant column groups per analysis table for further transformation or model input.
+- **Standardise boolean columns:** Plan subscription columns (e.g. `international_plan`, `voice_mail_plan`) should be stored as boolean `True`/`False` or integer `1`/`0` rather than string `yes`/`no`, which can cause type errors in downstream tools.
+- **Validate KPI totals:** Confirm that summed customer counts across all segmentation tables (by plan, area code, usage tier, cluster, risk tier) each add up to 4,250. Inconsistencies suggest filtering or sampling artefacts that should be documented.
+- **Clarify the 91-column structure:** The single wide sheet with side-by-side tables is hard to parse programmatically. Either add a header row that clearly labels each table's start column, or split tables into separate sheets or CSV files (see Section 2).
+- **Document the risk scoring formula:** The composite risk score (0–7+) used for tier classification is not defined in the current README. Add the exact formula or decision logic so users can reproduce or validate the tiers independently.
+- **Check for rounding consistency:** Verify that churn rates reported across sections are computed consistently (e.g. churned / total, not churned / non-churned). The International Plan figure (42.2%) and Cluster 0 figure (42.2%) being identical warrants a double-check.
 
-```bash
-# Install required dependencies
-pip install pandas openpyxl
+### 2. Repository Structure
 
-# Load in Python
-import pandas as pd
-df = pd.read_excel('train_for_dashboard.xlsx', sheet_name='Sheet1')
-```
+- **Split tables into separate files or sheets:** The current 91-column single-sheet layout is not dashboard-friendly for all tools. Consider exporting each summary table as its own CSV (e.g. `churn_by_plan.csv`, `cluster_profiles.csv`, `risk_tiers.csv`) inside a `data/processed/` folder.
+- **Adopt a standard folder layout:**
+
+  ```
+  ├── data/
+  │   ├── raw/              # Original 4,250-record source dataset
+  │   └── processed/        # Pre-computed summary tables (one CSV per section)
+  ├── notebooks/            # Python scripts or Jupyter notebooks used to generate the dashboard data
+  ├── dashboard/            # Power BI (.pbix), Tableau (.twbx), or Excel dashboard file
+  └── docs/                 # README, data dictionary, methodology notes
+  ```
+
+- **Include the raw source data (if permissible):** The current repo only contains aggregated outputs. If the original 4,250-record dataset is shareable, include it under `data/raw/` so others can reproduce the analysis end-to-end.
+- **Add a `.gitignore`:** Exclude tool-specific temporary files (`.~lock.*`, `__pycache__/`, `.ipynb_checkpoints/`, `*.pyc`) to keep the repo clean.
+- **Enable Git LFS if needed:** If the Excel dashboard file (`.pbix` or `.xlsx`) exceeds 50 MB, enable Git LFS before the first commit with `git lfs track "*.xlsx" "*.pbix"`.
+
+### 3. Documentation
+
+- **Add a `data_dictionary.csv`:** Document every column in `Sheet1` — including the column group it belongs to, the metric name, data type, and description. This is critical given the wide 91-column layout where column context is not self-evident.
+- **Add a `requirements.txt`:** Specify the exact Python package versions used (`pandas`, `numpy`, `scikit-learn`, `openpyxl`) so others can reproduce the environment:
+
+  ```
+  pandas==2.x.x
+  numpy==1.x.x
+  scikit-learn==1.x.x
+  openpyxl==3.x.x
+  ```
+
+- **Document KMeans configuration:** Include the number of clusters (4), the features used (Day, Evening, Night, International Minutes), whether features were scaled, the random seed, and the inertia or silhouette score. This makes the clustering reproducible.
+- **Explain usage segment thresholds:** The day-minute quartile cut points (<143.3, 143.3–180.4, 180.4–216.2, >216.2) should be documented as derived from the training set, with a note on whether they should be recalculated for new data.
+- **Add dashboard setup instructions:** If a Power BI or Tableau file is included, add step-by-step instructions for connecting it to the data source in the README.
+
+### 4. Ethics, Privacy & Attribution
+
+- **Cite the original dataset source:** If this is derived from the well-known KDD Cup / UCI Telecom Churn dataset, add a citation:
+  > Orange Telecom Churn Dataset. Available via Kaggle and UCI ML Repository. Originally sourced from the KDD Cup competition data.
+- **Confirm anonymisation:** State explicitly that no real customer PII (names, phone numbers, account numbers) is present, and that area codes are used only as geographic aggregation bins.
+- **Add a `LICENSE` file:** Without one, the repo is technically "all rights reserved." For an analytical/educational project, **MIT License** (for code) combined with **CC BY 4.0** (for data and documentation) is a common and permissive choice.
+- **Add usage disclaimer to the dataset:** If `train_for_dashboard.xlsx` is published directly, embed a note in cell `A1` referencing the disclaimer already present in this README, so the file is self-describing when shared independently.
+
+### 5. Analysis & Dashboard Quality Improvements
+
+- **Investigate the U-shaped churn pattern:** The README notes that both Low-usage (12.1%) and High-usage (28.7%) customers churn at elevated rates, while Mid-High users churn at only 6.2%. This non-linear pattern is a significant insight — consider adding a visualisation or deeper breakdown to explain it.
+- **Add statistical significance tests:** Key comparisons (e.g. International Plan churn 42.2% vs. 11.2%, CS call threshold at 4+) would benefit from chi-square or z-test p-values to confirm the differences are not sampling artefacts given the 4,250-record base.
+- **Expand the geographic analysis:** With only 3 area codes and near-uniform churn rates (13.6–15.1%), consider whether state-level data is available in the raw records to produce a more actionable regional breakdown.
+- **Add a churn prediction model:** The risk scoring and clustering groundwork is already in place — consider adding a logistic regression or gradient boosting model trained on the 4,250 records to output individual-level churn probabilities, which would make the dashboard more actionable for retention teams.
+- **Version the dashboard data:** If the dashboard is intended for ongoing use, add a `generated_date` or `data_as_of` column to the KPI table so stakeholders can tell when the figures were last refreshed.
 
 ---
 
